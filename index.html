@@ -114,6 +114,12 @@
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
         }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+
         input:not([type="time"]), input:not([type="date"]), button, .modal-content input {
             padding: 14px;
             border: none;
@@ -126,6 +132,28 @@
             color: var(--color-text-light);
             border: 1px solid #444;
         }
+        
+        /* Color Input Styling */
+        input[type="color"] {
+            -webkit-appearance: none;
+            padding: 0;
+            border: none;
+            width: 50px; /* specific width for color picker */
+            height: 100%;
+            min-height: 48px;
+            cursor: pointer;
+            background: none;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0; 
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 8px;
+        }
+
         input::placeholder {
             color: var(--color-text-fade);
         }
@@ -186,9 +214,21 @@
             border-bottom: 1px solid #333;
             font-size: 0.9em;
         }
-        .snack-item span:first-child {
+        .snack-info-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            border: 1px solid #fff;
+        }
+        .snack-item span.snack-text {
             font-weight: bold;
-            color: var(--color-primary-red);
+            color: var(--color-text-light);
         }
         .snack-item:last-child {
             border-bottom: none;
@@ -203,10 +243,6 @@
             background-color: #444;
             color: var(--color-text-light);
             text-transform: none;
-        }
-        .snack-item-actions button.delete-btn {
-            background-color: #532525;
-            color: var(--color-primary-red);
         }
 
         /* --- Calendar Styles --- */
@@ -234,7 +270,7 @@
         .calendar-day {
             padding: 10px 5px;
             border-radius: 6px;
-            cursor: pointer; /* Enable clicking */
+            cursor: pointer;
             background-color: #2a2a2a;
             transition: background-color 0.3s;
         }
@@ -288,7 +324,7 @@
             border-radius: 12px;
         }
 
-        /* --- Modal Styles (for Editing/Adding Past Snacks) --- */
+        /* --- Modal Styles --- */
         .modal {
             position: fixed;
             z-index: 10;
@@ -348,7 +384,7 @@
             background-image: none;
             background-color: #3a1919;
             color: var(--color-primary-red);
-            order: 3; /* Move delete button to the end */
+            order: 3;
         }
         #modal-close-btn {
             background-image: none;
@@ -366,6 +402,10 @@
             font-weight: bold;
             color: var(--color-primary-blue);
         }
+        .modal-row {
+            display: flex;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
@@ -381,7 +421,10 @@
         <div id="tracker-view" class="view active">
             <div class="snack-form">
                 <input type="text" id="snack-name" placeholder="Snack name (e.g., 'Treat', 'Bone')">
-                <input type="number" id="snack-quantity" placeholder="Quantity" min="1" value="1">
+                <div class="form-row">
+                    <input type="color" id="snack-color" value="#FE2C55" title="Choose snack color">
+                    <input type="number" id="snack-quantity" placeholder="Quantity" min="1" value="1" style="flex-grow: 1;">
+                </div>
                 <button id="add-snack">Add Snack Now</button>
             </div>
 
@@ -423,7 +466,7 @@
         <div id="graph-view" class="view">
             <h2>Hourly Distribution</h2>
             <canvas id="hourly-snack-chart"></canvas>
-            <p style="text-align: center; margin-top: 15px; color: var(--color-text-fade); font-size: 0.9em;">Snacks given per hour of the current day.</p>
+            <p style="text-align: center; margin-top: 15px; color: var(--color-text-fade); font-size: 0.9em;">Stacked view by color per hour.</p>
         </div>
 
     </div>
@@ -434,19 +477,27 @@
             <span id="modal-date-display"></span>
 
             <label for="modal-name">Snack Name:</label>
-            <input type="text" id="modal-name">
+            <input type="text" id="modal-name" style="width: 100%; box-sizing: border-box;">
 
-            <label for="modal-quantity">Quantity:</label>
-            <input type="number" id="modal-quantity" min="1">
+            <div class="modal-row">
+                <div style="width: 30%;">
+                    <label for="modal-color">Color:</label>
+                    <input type="color" id="modal-color" style="width: 100%;">
+                </div>
+                <div style="width: 70%;">
+                    <label for="modal-quantity">Quantity:</label>
+                    <input type="number" id="modal-quantity" min="1" style="width: 100%; box-sizing: border-box;">
+                </div>
+            </div>
 
             <div style="display: flex; gap: 10px;">
                 <div style="flex-grow: 1;">
                     <label for="modal-date">Date:</label>
-                    <input type="date" id="modal-date">
+                    <input type="date" id="modal-date" style="width: 100%; box-sizing: border-box;">
                 </div>
                 <div style="flex-grow: 1;">
                     <label for="modal-time">Time:</label>
-                    <input type="time" id="modal-time">
+                    <input type="time" id="modal-time" style="width: 100%; box-sizing: border-box;">
                 </div>
             </div>
 
@@ -509,12 +560,16 @@
                 sortedTodaySnacks.forEach((snack, index) => {
                     // Find the original index in the ALL_SNACKS array
                     const originalIndex = allSnacks.findIndex(s => s.timestamp === snack.timestamp && s.name === snack.name && s.quantity === snack.quantity);
-                    
+                    const snackColor = snack.color || '#FE2C55'; // Default color fallback
+
                     const snackDate = new Date(snack.timestamp);
                     const li = document.createElement('li');
                     li.className = 'snack-item';
                     li.innerHTML = `
-                        <span>${snack.quantity} ${snack.name}(s)</span>
+                        <div class="snack-info-group">
+                            <span class="color-dot" style="background-color: ${snackColor};"></span>
+                            <span class="snack-text">${snack.quantity} ${snack.name}</span>
+                        </div>
                         <div class="snack-item-actions">
                             <span style="color: var(--color-text-fade); margin-right: 10px;">${snackDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             <button onclick="openEditModal(${originalIndex})">Edit</button>
@@ -539,13 +594,14 @@
         }
 
         // --- Tracker View Functions ---
-        function addSnack(name, quantity, time) {
+        function addSnack(name, quantity, time, color) {
             const now = time ? new Date(time) : new Date();
             
             const snack = {
                 name: name.trim() || 'Snack',
                 quantity: quantity || 1,
                 timestamp: now.getTime(),
+                color: color || document.getElementById('snack-color').value || '#FE2C55'
             };
 
             allSnacks.push(snack);
@@ -558,8 +614,9 @@
         document.getElementById('add-snack').addEventListener('click', () => {
             const name = document.getElementById('snack-name').value;
             const quantity = parseInt(document.getElementById('snack-quantity').value);
-            addSnack(name, quantity);
-            // Clear inputs, keep name for quick repeat
+            const color = document.getElementById('snack-color').value;
+            addSnack(name, quantity, null, color);
+            // Clear inputs but keep color
             document.getElementById('snack-quantity').value = '1';
         });
         document.getElementById('snack-name').addEventListener('keypress', function(e) {
@@ -582,6 +639,7 @@
         const modalDateDisplay = document.getElementById('modal-date-display');
         const modalName = document.getElementById('modal-name');
         const modalQuantity = document.getElementById('modal-quantity');
+        const modalColor = document.getElementById('modal-color');
         const modalDate = document.getElementById('modal-date');
         const modalTime = document.getElementById('modal-time');
         const modalSaveBtn = document.getElementById('modal-save-btn');
@@ -601,6 +659,7 @@
                 modalTitle.textContent = 'Edit Snack Entry';
                 modalName.value = snack.name;
                 modalQuantity.value = snack.quantity;
+                modalColor.value = snack.color || '#FE2C55';
                 modalDeleteBtn.style.display = 'inline-block';
             } else {
                 // Adding new snack via Calendar
@@ -608,6 +667,8 @@
                 modalTitle.textContent = 'Add Snack Entry';
                 modalName.value = '';
                 modalQuantity.value = '1';
+                // Use main form color or default
+                modalColor.value = document.getElementById('snack-color').value || '#FE2C55';
                 modalDeleteBtn.style.display = 'none';
             }
 
@@ -632,6 +693,7 @@
         modalSaveBtn.addEventListener('click', () => {
             const name = modalName.value;
             const quantity = parseInt(modalQuantity.value);
+            const color = modalColor.value;
             const dateStr = modalDate.value;
             const timeStr = modalTime.value;
 
@@ -648,9 +710,10 @@
                 allSnacks[editingSnackIndex].name = name;
                 allSnacks[editingSnackIndex].quantity = quantity;
                 allSnacks[editingSnackIndex].timestamp = newTimestamp;
+                allSnacks[editingSnackIndex].color = color;
             } else {
                 // Add new snack (from calendar)
-                addSnack(name, quantity, newTimestamp);
+                addSnack(name, quantity, newTimestamp, color);
             }
 
             // Re-sort data in case the date/time was changed
@@ -708,7 +771,6 @@
                 if (count > 0) {
                     dayDiv.classList.add('has-snacks');
                 }
-                // Click handler to open modal and set date
                 dayDiv.onclick = () => openEditModal(-1, currentDate);
 
                 dayDiv.innerHTML = `
@@ -755,7 +817,6 @@
                 if (count > 0) {
                     dayDiv.classList.add('has-snacks');
                 }
-                // Click handler to open modal and set date
                 dayDiv.onclick = () => openEditModal(-1, currentDate);
 
                 dayDiv.innerHTML = `
@@ -791,76 +852,96 @@
         // --- Graph View Functions (Chart.js) ---
         function renderHourlyChart() {
             const todaySnacks = getTodaySnacks();
-            const hourCounts = new Array(24).fill(0);
+            
+            // We need to group data by Color.
+            // Result structure: object where key is color hex, value is array of 24 numbers (one per hour)
+            const colorDatasets = {}; 
 
             todaySnacks.forEach(snack => {
+                const color = snack.color || '#FE2C55'; // Fallback for old data
                 const date = new Date(snack.timestamp);
                 const hour = date.getHours();
-                hourCounts[hour] += snack.quantity;
+
+                if (!colorDatasets[color]) {
+                    colorDatasets[color] = new Array(24).fill(0);
+                }
+                colorDatasets[color][hour] += snack.quantity;
+            });
+
+            // Prepare datasets for Chart.js
+            const datasets = Object.keys(colorDatasets).map(color => {
+                return {
+                    label: 'Snack', // Generic label, can be improved if grouping by Name+Color
+                    data: colorDatasets[color],
+                    backgroundColor: color,
+                    borderColor: '#1e1e1e', // Add border to distinguish stacks
+                    borderWidth: 1,
+                    borderRadius: 4
+                };
             });
 
             const ctx = document.getElementById('hourly-snack-chart').getContext('2d');
             const labels = Array.from({length: 24}, (_, i) => `${i}:00`);
             
+            // If chart exists, destroy it to prevent state issues when changing dataset structure
             if (chartInstance) {
-                chartInstance.data.datasets[0].data = hourCounts;
-                chartInstance.update();
-            } else {
-                Chart.defaults.color = 'var(--color-text-fade)';
-                Chart.defaults.font.family = 'var(--font-stack)';
+                chartInstance.destroy();
+            }
 
-                chartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: 'Snacks Given',
-                            data: hourCounts,
-                            backgroundColor: 'var(--color-primary-red)',
-                            borderColor: 'var(--color-primary-blue)',
-                            borderWidth: 1,
-                            borderRadius: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Number of Snacks',
-                                    color: 'var(--color-text-light)'
-                                },
-                                ticks: {
-                                    stepSize: 1
-                                },
-                                grid: {
-                                    color: '#333'
-                                }
+            Chart.defaults.color = 'var(--color-text-fade)';
+            Chart.defaults.font.family = 'var(--font-stack)';
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            stacked: true, // Enable stacking
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Snacks',
+                                color: 'var(--color-text-light)'
                             },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Time of Day (Hour)',
-                                    color: 'var(--color-text-light)'
-                                },
-                                grid: {
-                                    display: false
-                                }
+                            ticks: {
+                                stepSize: 1
+                            },
+                            grid: {
+                                color: '#333'
                             }
                         },
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
+                        x: {
+                            stacked: true, // Enable stacking
                             title: {
+                                display: true,
+                                text: 'Time of Day (Hour)',
+                                color: 'var(--color-text-light)'
+                            },
+                            grid: {
                                 display: false
                             }
                         }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false // Hide legend as we are grouping by color, names might vary
+                        },
+                        tooltip: {
+                            callbacks: {
+                                // Customize tooltip to maybe show color hex or generic "Snacks"
+                                label: function(context) {
+                                    return ` ${context.raw} Snacks`;
+                                }
+                            }
+                        }
                     }
-                });
-            }
+                }
+            });
         }
         
         // --- View Switching Logic ---
